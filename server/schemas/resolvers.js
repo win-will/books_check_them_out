@@ -1,38 +1,60 @@
-const { User, Books } = require('../models');
+const { User, Book } = require('../models');
 const { AuthenticationError } = require('apollo-server-express');
 const { signToken } = require('../utils/auth');
 
 const resolvers = {
   Query: {
-    user: async (parent, { username }) => {
+    me: async (parent, { username }) => {
       const params = username ? { username } : {};
       return User.find(params);
     },
   },
   Mutation: {
-    createUser: async (parent, args) => {
-      const user = await User.create(args);
-      return user;
-    },
-    login: async (parent, { email, password }) => {
-      const user = await User.findOne({ email });
-
-      if (!user) {
-        throw new AuthenticationError('No user found with this email address');
-      }
-
-      const correctPw = await user.isCorrectPassword(password);
-
-      if (!correctPw) {
-        throw new AuthenticationError('Incorrect credentials');
-      }
-
+    addUser: async (parent, { username, email, password }) => {
+      const user = await User.create({ username, email, password });
       const token = signToken(user);
-
       return { token, user };
-    }
+    },
+      loginUser: async (parent, { email, password }) => {
+        const user = await User.findOne({ email });
 
-  },
+        if (!user) {
+          throw new AuthenticationError('No user found with this email address');
+        }
+
+        const correctPw = await user.isCorrectPassword(password);
+
+        if (!correctPw) {
+          throw new AuthenticationError('Incorrect credentials');
+        }
+
+        const token = signToken(user);
+
+        return { token, user };
+      },
+      // save a book to a user's `savedBooks` field by adding it to the set (to prevent duplicates)
+    // user comes from `req.user` created in the auth middleware function
+    saveBook: async (parent, { user, book }) => {
+
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
+        { $addToSet: { savedBooks: book } },
+        { new: true, runValidators: true }
+      );
+      
+      return updatedUser;
+
+    },
+    // remove a book from `savedBooks`
+    removeBook: async (parent, { _id, bookId }) => {
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: _id },
+        { $pull: { savedBooks: { bookId: bookId } } },
+        { new: true }
+      );
+      return updatedUser;
+    },
+  }
 };
 
 module.exports = resolvers;
