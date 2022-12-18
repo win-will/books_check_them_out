@@ -1,13 +1,15 @@
-const { User, Book } = require('../models');
+const { User } = require('../models');
 const { AuthenticationError } = require('apollo-server-express');
 const { signToken } = require('../utils/auth');
 
 const resolvers = {
   Query: {
-    me: async (parent, { username }) => {
-      const params = username ? { username } : {};
-      return User.find(params);
-    },
+    me: async (parent, args) => {
+      // const params = username ? { username } : {};
+      const user = await User.findOne({username: args.username});
+
+      return user;
+    }
   },
   Mutation: {
     addUser: async (parent, { username, email, password }) => {
@@ -34,13 +36,19 @@ const resolvers = {
       },
       // save a book to a user's `savedBooks` field by adding it to the set (to prevent duplicates)
     // user comes from `req.user` created in the auth middleware function
-    saveBook: async (parent, { user, book }) => {
+    saveBook: async (parent, args) => {
+      // console.log(input);
+      // console.log(args);
 
       const updatedUser = await User.findOneAndUpdate(
-        { _id: user._id },
-        { $addToSet: { savedBooks: book } },
+
+        { username: args.username },
+        { $addToSet: { savedBooks: args.input } },
         { new: true, runValidators: true }
       );
+      
+      // console.log(updatedUser);
+      // console.log("Updated User: Saved Book!");
       
       return updatedUser;
 

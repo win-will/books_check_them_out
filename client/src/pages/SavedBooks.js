@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Jumbotron, Container, CardColumns, Card, Button } from 'react-bootstrap';
 
-// import { getMe, deleteBook } from '../utils/API';
 import Auth from '../utils/auth';
 import { removeBookId } from '../utils/localStorage';
 
@@ -12,17 +11,26 @@ import { GET_ME } from '../utils/queries';
 
 
 const SavedBooks = () => {
-  const [userData, setUserData] = useState({});
-
-  const {loading, data} = useQuery(GET_ME, {
-      variables: {username: Auth.getProfile().username}
+  const [userData, setUserData] = useState({
+    username: "",
+    savedBooks: []
   });
 
-  if(!loading) {
-    setUserData(data);
+  const { loading, data } = useQuery(GET_ME, {
+      variables: {username: Auth.getProfile().data.username}
+  });
+
+  if (data && userData.username === "") {
+
+    setUserData({
+      username: data.me.username,
+      savedBooks: data.me.savedBooks
+    });
+
   }
-  
-  const  { removeBook} = useMutation(REMOVE_BOOK);
+    
+
+  const  [ removeBook ] = useMutation(REMOVE_BOOK);
 
   // create function that accepts the book's mongo _id value as param and deletes the book from the database
   const handleDeleteBook = async (bookId) => {
@@ -34,17 +42,19 @@ const SavedBooks = () => {
 
     try {
 
-      const userId = Auth.getProfile()._id;
-      const response = await removeBook({
-        variables: {  userId, bookId}
+      const userId = Auth.getProfile().data._id;
+      const dataRemove = await removeBook({
+        variables: {  _id: userId, bookId: bookId}
       });
 
-      if (!response.ok) {
+      if (!dataRemove) {
         throw new Error('something went wrong!');
       }
 
-      // const updatedUser = await response.json();
-      setUserData(response.json());
+      setUserData({
+        username: dataRemove.data.removeBook.username,
+        savedBooks: dataRemove.data.removeBook.savedBooks
+      });
       // upon success, remove book's id from localStorage
       removeBookId(bookId);
     } catch (err) {
@@ -93,38 +103,3 @@ const SavedBooks = () => {
 };
 
 export default SavedBooks;
-
- // use this to determine if `useEffect()` hook needs to run again
-  // const userDataLength = Object.keys(userData).length;
-
-  
-
-  // useEffect(() => {
-
-  //   const getMe = useQuery(GET_ME);
-
-  //   const getUserData = async () => {
-  //     try {
-  //       const token = Auth.loggedIn() ? Auth.getToken() : null;
-
-  //       if (!token) {
-  //         return false;
-  //       }
-
-  //       const response = await getMe({
-  //         variables: {username: Auth.getProfile().username}
-  //       });
-
-  //       if (!response.ok) {
-  //         throw new Error('something went wrong!');
-  //       }
-
-  //       const user = await response.json();
-  //       setUserData(user);
-  //     } catch (err) {
-  //       console.error(err);
-  //     }
-  //   };
-
-  //   getUserData();
-  // }, [userDataLength]);
